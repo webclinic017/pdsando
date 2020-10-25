@@ -17,8 +17,14 @@ class Indicator(PdPipelineStage):
   def _prec(self, df):
     return True
   
+  def _get_or_apply(self, df):
+    if self._tgt_col in df.columns:
+      return df
+    else:
+      return self._transform(df, False)
+  
   def _indicator(self, df):
-    return [mpf.make_addplot(self._transform(df, False)[self._tgt_col], panel=self._panel, color=self._color, type='line', width=self._width, alpha=self._alpha)]
+    return [mpf.make_addplot(self._get_or_apply(df)[self._tgt_col], panel=self._panel, color=self._color, type='line', width=self._width, alpha=self._alpha)]
 
 class SMA(Indicator):
   
@@ -218,9 +224,12 @@ class SuperTrend(Indicator):
   
   def _indicator(self, df):
     orig = self._as_offset
-    self._as_offset = True
-    st = self._transform(df, False)[self._tgt_col]
-    self._as_offset = orig
+    if not orig:
+      self._as_offset = True
+      st = self._transform(df, False)[self._tgt_col]
+      self._as_offset = orig
+    else:
+      st = self._get_or_apply(df)[self._tgt_col]
     hl2 = HL2('hl2', high=self._high, low=self._low).apply(df)['hl2']
     ss_upper = np.where(st > 0, hl2 - st, np.nan)
     ss_lower = np.where(st < 0, hl2 - st, np.nan)
@@ -294,7 +303,7 @@ class DonchianRibbon(Indicator):
     return ret_df
   
   def _indicator(self, df):
-    tmp = self._transform(df, False)[self._tgt_col]
+    tmp = self._get_or_apply(df)[self._tgt_col]
     pos = np.where(tmp > 0, tmp, 0)
     neg = np.where(tmp <= 0, tmp.abs(), 0)
     return [
@@ -402,7 +411,7 @@ class DeviationSpread(Indicator):
     return ret_df
   
   def _indicator(self, df):
-    tmp = self._transform(df, False)
+    tmp = self._get_or_apply(df)
     return [
       mpf.make_addplot(tmp['{}_lowest'.format(self._tgt_col)] , panel=0, color='black' , type='line', width=self._width, alpha=0.4),
       mpf.make_addplot(tmp['{}_low'.format(self._tgt_col)]    , panel=0, color='blue'  , type='line', width=self._width, alpha=0.4),
@@ -450,4 +459,4 @@ class Backtest(Indicator):
     return ret_df
   
   def _indicator(self, df):
-    return [mpf.make_addplot(self._transform(df, False)[self._tgt_col], panel=2, color=self._color, type='line', width=self._width, alpha=self._alpha)]
+    return [mpf.make_addplot(self._get_or_apply(df)[self._tgt_col], panel=2, color=self._color, type='line', width=self._width, alpha=self._alpha)]

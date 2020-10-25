@@ -23,8 +23,14 @@ class Strategy(PdPipelineStage):
   def _prec(self, df):
     return True
   
+  def _get_or_apply(self, df):
+    if self._tgt_col in df.columns:
+      return df
+    else:
+      return self._transform(df, False)
+  
   def _indicator(self, df):
-    return [mpf.make_addplot(self._transform(df, False)[self._tgt_col], panel=self._panel, color=self._color, type='line', width=self._width, alpha=self._alpha)]
+    return [mpf.make_addplot(self._get_or_apply(df)[self._tgt_col], panel=self._panel, color=self._color, type='line', width=self._width, alpha=self._alpha)]
 
 class Blender(Strategy):
   
@@ -98,10 +104,10 @@ class Blender(Strategy):
   
   def _indicator(self, df):
     if self._as_buy_sell:
-      temp = self._transform(df, False)
+      temp = self._get_or_apply(df)
       temp['sig'] = temp[self._tgt_col]
     else:
-      temp = TrailingStop('sig', self._tgt_col, self._close, self._high, self._trail_frac).apply(self._transform(df, False))
+      temp = TrailingStop('sig', self._tgt_col, self._close, self._high, self._trail_frac).apply(self._get_or_apply(df))
     
     temp['buy'] = np.where(temp['sig'] > 0, temp[self._close], np.nan)
     temp['sell'] = np.where(temp['sig'] < 0, temp[self._close], np.nan)
