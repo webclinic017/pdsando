@@ -317,7 +317,7 @@ class TrailingStop(Transform):
     cur_stop_price = -1.0
     src_val = df[self._src_col]
     ret_df[self._tgt_col] = np.nan
-    #ret_df[f'{self._tgt_col}_stoploss'] = np.nan
+    
     for i in range(len(ret_df)):
       if src_val.iat[i] > 0 and not in_pos:
         in_pos = True
@@ -330,7 +330,5 @@ class TrailingStop(Transform):
         else:
           cur_stop_price = max(cur_stop_price, ret_df[self._high].iat[i-1] * (1.0 - self._trail_frac))
           ret_df[self._tgt_col].iat[i] = 0
-      
-      #ret_df[f'{self._tgt_col}_stoploss'].iat[i] = cur_stop_price
     
     return ret_df

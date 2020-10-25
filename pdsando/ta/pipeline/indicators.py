@@ -413,11 +413,12 @@ class DeviationSpread(Indicator):
 
 class Backtest(Indicator):
   
-  def __init__(self, tgt_col, signal_col, price_col='Close', start_amount=1000000, **kwargs):
+  def __init__(self, tgt_col, signal_col, price_col='Close', start_amount=1000000, as_percent=False, **kwargs):
     self._tgt_col = tgt_col
     self._signal_col = signal_col
     self._price_col = price_col
     self._start_amount = start_amount
+    self._as_percent = as_percent
     super().__init__(tgt_col=tgt_col, **kwargs)
   
   def _transform(self, df, verbose):
@@ -442,6 +443,9 @@ class Backtest(Indicator):
         ret_df[self._tgt_col].iat[i] = free_val
       else:
         ret_df[self._tgt_col].iat[i] = free_val + (shares_held * ret_df[self._price_col].iat[i])
+    
+    if self._as_percent:
+      ret_df[self._tgt_col] = (ret_df[self._tgt_col] / self._start_amount) * 100 - 100.00
     
     return ret_df
   
