@@ -23,6 +23,15 @@ class Strategy(PdPipelineStage):
   def _prec(self, df):
     return True
   
+  def _preprocess(self, pipeline):
+    return
+  
+  def _buy_criteria(self, criteria):
+    return
+  
+  def _sell_criteria(self, criteria):
+    return
+  
   def _get_or_apply(self, df):
     if self._tgt_col in df.columns:
       return df
