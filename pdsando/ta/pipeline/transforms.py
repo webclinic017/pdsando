@@ -269,7 +269,7 @@ class IntradayGroups(Transform):
       self._volume: 'sum'
     }).sort_values(by=self._timestamp).reset_index(drop=True)
 
-class BuySell(Transform):
+class BuySellOld(Transform):
   
   def __init__(self, tgt_col, src_col, short=False, **kwargs):
     self._tgt_col = tgt_col
@@ -297,9 +297,9 @@ class BuySell(Transform):
     
     return ret_df
 
-class TrailingStop(Transform):
+class BuySell(Transform):
   
-  def __init__(self, tgt_col, src_col, close='Close', high='High', trail_frac=0.01, **kwargs):
+  def __init__(self, tgt_col, src_col, close='Close', high='High', trail_frac=None, **kwargs):
     self._tgt_col = tgt_col
     self._src_col = src_col
     self._close = close
@@ -311,7 +311,7 @@ class TrailingStop(Transform):
     ret_df = df.copy()
     
     if verbose:
-      print('Converting raw signals ({}) to BuySell timeline events ({})"'.format(self._src_col, self._tgt_col))
+      print('Converting raw signals ({}) to BuySell timeline events ({}) with trailing stop ({})"'.format(self._src_col, self._tgt_col, self._trail_frac))
     
     in_pos = False
     cur_stop_price = -1.0
@@ -323,12 +323,12 @@ class TrailingStop(Transform):
         in_pos = True
         ret_df[self._tgt_col].iat[i] = 1
       elif in_pos:
-        if ret_df[self._close].iat[i] <= cur_stop_price:
+        if (ret_df[self._close].iat[i] <= cur_stop_price) or (ret_df[self._close].iat[i] < 0):
           in_pos = False
           cur_stop_price = -1.0
           ret_df[self._tgt_col].iat[i] = -1
         else:
-          cur_stop_price = max(cur_stop_price, ret_df[self._high].iat[i-1] * (1.0 - self._trail_frac))
+          cur_stop_price = max(cur_stop_price, ret_df[self._high].iat[i-1] * (1.0 - self._trail_frac)) if self._trail_frac else -1.0
           ret_df[self._tgt_col].iat[i] = 0
     
     return ret_df
