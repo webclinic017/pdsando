@@ -67,7 +67,7 @@ class Blender(Strategy):
       pdp.ColDrop(columns=['VolumeWeighted', 'NumItems', 's'], errors='ignore'),
       ResetIndex(),
       SuperTrend('supertrend', multiplier=self._supertrend_multiplier, as_offset=True),
-      AverageDirectionalIndex('adx', 20),
+      #AverageDirectionalIndex('adx', 20),
       DonchianRibbon('donchian', period=self._donchian_period),
       RollingMax('prev_close', self._close, 1),
       EMA('c_ema_52', self._close, 52)
@@ -89,7 +89,7 @@ class Blender(Strategy):
     j.loc[
       (j.supertrend > 0) &
       (j.donchian == 10) &
-      (j.adx > 15) &
+      #(j.adx > 15) &
       (j.supertrend_agg > 0) &
       (j.donchian_agg < 0) &
       (j.donchian_agg >= self._donchian_thresh) &
