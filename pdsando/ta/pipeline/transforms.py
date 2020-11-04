@@ -297,38 +297,18 @@ class BuySellOld(Transform):
     
     return ret_df
 
-class BuySell(Transform):
+class Invert(Transform):
   
-  def __init__(self, tgt_col, src_col, close='Close', high='High', trail_frac=None, **kwargs):
+  def __init__(self, tgt_col, src_col=None, **kwargs):
     self._tgt_col = tgt_col
-    self._src_col = src_col
-    self._close = close
-    self._high = high
-    self._trail_frac = trail_frac
+    self._src_col = src_col if src_col else tgt_col
     super().__init__()
   
   def _transform(self, df, verbose):
     ret_df = df.copy()
     
     if verbose:
-      print('Converting raw signals ({}) to BuySell timeline events ({}) with trailing stop ({})"'.format(self._src_col, self._tgt_col, self._trail_frac))
+      print('Muliplying column {} by -1'.format(self._src_col))
     
-    in_pos = False
-    cur_stop_price = -1.0
-    src_val = df[self._src_col]
-    ret_df[self._tgt_col] = np.nan
-    
-    for i in range(len(ret_df)):
-      if src_val.iat[i] > 0 and not in_pos:
-        in_pos = True
-        ret_df[self._tgt_col].iat[i] = 1
-      elif in_pos:
-        if (ret_df[self._close].iat[i] <= cur_stop_price) or (ret_df[self._close].iat[i] < 0):
-          in_pos = False
-          cur_stop_price = -1.0
-          ret_df[self._tgt_col].iat[i] = -1
-        else:
-          cur_stop_price = max(cur_stop_price, ret_df[self._high].iat[i-1] * (1.0 - self._trail_frac)) if self._trail_frac else -1.0
-          ret_df[self._tgt_col].iat[i] = 0
-    
+    ret_df[self._tgt_col] = ret_df[self._src_col] * -1
     return ret_df

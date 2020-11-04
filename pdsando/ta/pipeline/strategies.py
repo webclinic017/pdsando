@@ -6,9 +6,9 @@ from datetime import datetime, timedelta
 from pdpipe import PdPipelineStage
 
 from pdsando.ta.datafeeds.polygon import Polygon
-from pdsando.ta.pipeline.indicators import SuperTrend, DonchianRibbon, EMA, RollingMax, RateOfChange, HL2, AverageDirectionalIndex
+from pdsando.ta.pipeline.indicators import SuperTrend, DonchianRibbon, EMA, RollingMax, RateOfChange, HL2, AverageDirectionalIndex, BuySell
 from pdsando.ta.pipeline.filters import RemoveNonMarketHours
-from pdsando.ta.pipeline.transforms import Shift, ResetIndex, ThirtyToSixty, ColKeep, IntradayGroups, BuySell
+from pdsando.ta.pipeline.transforms import Shift, ResetIndex, ThirtyToSixty, ColKeep, IntradayGroups
 
 class Strategy(PdPipelineStage):
   
@@ -44,7 +44,7 @@ class Strategy(PdPipelineStage):
       return self._transform(df, False)
   
   def _indicator(self, df):
-    temp = df.copy()
+    temp = self._get_or_apply(df).copy()
     temp['buy'] = np.where(temp[self._tgt_col] > 0, temp[self._close], np.nan)
     temp['sell'] = np.where(temp[self._tgt_col] < 0, temp[self._close], np.nan)
     

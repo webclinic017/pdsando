@@ -173,7 +173,7 @@ class HL2(Indicator):
 
 class SuperTrend(Indicator):
   
-  def __init__(self, tgt_col, period=10, multiplier=3, high='High', low='Low', close='Close', as_offset=False, **kwargs):
+  def __init__(self, tgt_col, period=10, multiplier=3, high='High', low='Low', close='Close', as_offset=True, **kwargs):
     self._tgt_col = tgt_col
     self._period = period
     self._multiplier = multiplier
@@ -215,9 +215,11 @@ class SuperTrend(Indicator):
         ret_df['_trend'].iat[i] = ret_df['_trend'].iat[i-1]
     
     if self._as_offset:
-      ret_df[self._tgt_col] = ret_df.apply(lambda row: row['_hl2']-row['_lower_band'] if row['_trend'] > 0 else row['_hl2']-row['_upper_band'], axis=1)
+      #ret_df[self._tgt_col] = ret_df.apply(lambda row: row['_hl2']-row['_lower_band'] if row['_trend'] > 0 else row['_hl2']-row['_upper_band'], axis=1)
+      ret_df[self._tgt_col] = np.where(ret_df['_trend'] > 0, ret_df['_hl2']-ret_df['_lower_band'], ret_df['_hl2']-ret_df['_upper_band'])
     else:
-      ret_df[self._tgt_col] = ret_df.apply(lambda row: row['_lower_band'] if row['_trend'] > 0 else row['_upper_band'], axis=1)
+      #ret_df[self._tgt_col] = ret_df.apply(lambda row: row['_lower_band'] if row['_trend'] > 0 else row['_upper_band'], axis=1)
+      ret_df[self._tgt_col] = np.where(ret_df['_trend'] > 0, ret_df['_lower_band'], ret_df['_upper_band'])
     
     ret_df.drop(['_hl2', '_tr', '_atr', '_basic_lower_band', '_basic_upper_band', '_lower_band', '_upper_band', '_trend'], axis=1, inplace=True)
     return ret_df
@@ -460,3 +462,52 @@ class Backtest(Indicator):
   
   def _indicator(self, df):
     return [mpf.make_addplot(self._get_or_apply(df)[self._tgt_col], panel=2, color=self._color, type='line', width=self._width, alpha=self._alpha)]
+
+class BuySell(Indicator):
+  
+  def __init__(self, tgt_col, src_col, close='Close', high='High', trail_frac=None, sell_eod=False, **kwargs):
+    self._tgt_col = tgt_col
+    self._src_col = src_col
+    self._close = close
+    self._high = high
+    self._trail_frac = trail_frac
+    super().__init__(tgt_col=tgt_col, **kwargs)
+  
+  def _transform(self, df, verbose):
+    ret_df = df.copy()
+    
+    if verbose:
+      print('Converting raw signals ({}) to BuySell timeline events ({}) with trailing stop ({})"'.format(self._src_col, self._tgt_col, self._trail_frac))
+    
+    in_pos = False
+    cur_stop_price = -1.0
+    src_val = df[self._src_col]
+    ret_df[self._tgt_col] = np.nan
+    
+    for i in range(len(ret_df)):
+      if src_val.iat[i] > 0 and not in_pos:
+        in_pos = True
+        ret_df[self._tgt_col].iat[i] = 1
+      elif in_pos:
+        if (ret_df[self._close].iat[i] <= cur_stop_price) or (src_val.iat[i] < 0):
+          in_pos = False
+          cur_stop_price = -1.0
+          ret_df[self._tgt_col].iat[i] = -1
+        else:
+          cur_stop_price = max(cur_stop_price, ret_df[self._high].iat[i-1] * (1.0 - self._trail_frac)) if self._trail_frac else -1.0
+          ret_df[self._tgt_col].iat[i] = 0
+    
+    return ret_df
+  
+  def _indicator(self, df):
+    temp = self._get_or_apply(df).copy()
+    temp['buy'] = np.where(temp[self._tgt_col] > 0, temp[self._close], np.nan)
+    temp['sell'] = np.where(temp[self._tgt_col] < 0, temp[self._close], np.nan)
+    
+    ret = []
+    if len(temp[temp['buy'].notna()]):
+      ret.append(mpf.make_addplot(temp['buy'], panel=self._panel, type='scatter', markersize=100, marker='^', width=self._width, alpha=self._alpha))
+    if len(temp[temp['sell'].notna()]):
+      ret.append(mpf.make_addplot(temp['sell'], panel=self._panel, type='scatter', markersize=100, marker='v', width=self._width, alpha=self._alpha))
+    
+    return ret

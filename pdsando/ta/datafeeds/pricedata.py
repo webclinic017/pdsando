@@ -24,6 +24,9 @@ class PriceData(DataFrame):
   @property
   def source(self): return self._source
   
+  def copy(self, **kwargs):
+    return PriceData(super().copy(**kwargs), timespan=self._timespan, multiplier=self._multiplier, source=self._source)
+  
   # Up/downscale data resolution
   def match_resolution(self, model_data):
     if model_data.timespan != self._timespan:
