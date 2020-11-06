@@ -465,12 +465,16 @@ class Backtest(Indicator):
 
 class BuySell(Indicator):
   
-  def __init__(self, tgt_col, src_col, close='Close', high='High', trail_frac=None, sell_eod=False, **kwargs):
+  def __init__(self, tgt_col, src_col, close='Close', high='High', ts='Timestamp', trail_frac=None, sell_eod=False, buy_window=(None,None), sell_window=(None,None), **kwargs):
     self._tgt_col = tgt_col
     self._src_col = src_col
     self._close = close
     self._high = high
+    self._ts = ts
     self._trail_frac = trail_frac
+    self._sell_eod = sell_eod
+    self._buy_window = buy_window
+    self._sell_window = sell_window
     super().__init__(tgt_col=tgt_col, **kwargs)
   
   def _transform(self, df, verbose):
@@ -484,12 +488,37 @@ class BuySell(Indicator):
     src_val = df[self._src_col]
     ret_df[self._tgt_col] = np.nan
     
+    eod_ind = np.where(
+      ret_df[self._ts].isin(
+        ret_df.groupby([
+          ret_df[self._ts].dt.year,
+          ret_df[self._ts].dt.month,
+          ret_df[self._ts].dt.day
+        ])[self._ts].transform('max').values
+      ),
+      True, False
+    ) if self._sell_eod else []
+    
     for i in range(len(ret_df)):
-      if src_val.iat[i] > 0 and not in_pos:
+      cur_time = ret_df[self._ts].iat[i]
+      buy_start = cur_time.replace(hour=int(self._buy_window[0].split(':')[0]), minute=int(self._buy_window[0].split(':')[1])) if self._buy_window[0] else cur_time.replace(hour=0, minute=0)
+      buy_end = cur_time.replace(hour=int(self._buy_window[1].split(':')[0]), minute=int(self._buy_window[1].split(':')[1])) if self._buy_window[0] else cur_time.replace(hour=23, minute=59)
+      
+      sell_start = cur_time.replace(hour=int(self._sell_window[0].split(':')[0]), minute=int(self._sell_window[0].split(':')[1])) if self._sell_window[0] else cur_time.replace(hour=0, minute=0)
+      sell_end = cur_time.replace(hour=int(self._sell_window[1].split(':')[0]), minute=int(self._sell_window[1].split(':')[1])) if self._sell_window[0] else cur_time.replace(hour=23, minute=59)
+      
+      in_buy_window = buy_start <= cur_time < buy_end
+      in_sell_window = sell_start <= cur_time < sell_end
+      
+      if src_val.iat[i] > 0 and not in_pos and in_buy_window:
         in_pos = True
         ret_df[self._tgt_col].iat[i] = 1
       elif in_pos:
-        if (ret_df[self._close].iat[i] <= cur_stop_price) or (src_val.iat[i] < 0):
+        stopped_out = ret_df[self._close].iat[i] <= cur_stop_price
+        short_sig = src_val.iat[i] < 0
+        is_eod = self._sell_eod and eod_ind[i]
+        
+        if stopped_out or short_sig or is_eod:
           in_pos = False
           cur_stop_price = -1.0
           ret_df[self._tgt_col].iat[i] = -1

@@ -17,6 +17,7 @@ class Strategy(PdPipelineStage):
     self._close = kwargs.pop('close')
     self._high = kwargs.pop('high')
     self._trail_frac = kwargs.pop('trail_frac', None)
+    self._sell_eod = kwargs.pop('sell_eod', False)
     self._color = kwargs.pop('color', 'black')
     self._width = kwargs.pop('width', 1)
     self._alpha = kwargs.pop('alpha', 1)
@@ -35,7 +36,7 @@ class Strategy(PdPipelineStage):
     
     ret_df = df.copy()
     ret_df = self._preprocess(ret_df)
-    return BuySell(self._tgt_col, self._tgt_col, self._close, self._high, self._trail_frac).apply(ret_df)
+    return BuySell(self._tgt_col, self._tgt_col, self._close, self._high, trail_frac=self._trail_frac, sell_eod=self._sell_eod).apply(ret_df)
   
   def _get_or_apply(self, df):
     if self._tgt_col in df.columns:
@@ -58,18 +59,16 @@ class Strategy(PdPipelineStage):
 
 class Blender(Strategy):
   
-  def __init__(self, tgt_col, close='Close', high='High', ts='Timestamp', supertrend_multiplier=1.5, donchian_period=21, donchian_thresh=-7, as_buy_sell=False, trail_frac=0.01, debug=False, **kwargs):
+  def __init__(self, tgt_col, close='Close', high='High', ts='Timestamp', supertrend_multiplier=1.5, donchian_period=21, donchian_thresh=-7, trail_frac=0.01, sell_eod=False, debug=False, **kwargs):
     self._tgt_col = tgt_col
     self._supertrend_multiplier = supertrend_multiplier
     self._donchian_period = donchian_period
     self._donchian_thresh = donchian_thresh
-    self._as_buy_sell = as_buy_sell
     self._debug = debug
     self._close = close
     self._high = high
     self._ts = ts
-    self._trail_frac = trail_frac
-    super().__init__(tgt_col=tgt_col, close=close, high=high, trail_frac=trail_frac, **kwargs)
+    super().__init__(tgt_col=tgt_col, close=close, high=high, trail_frac=trail_frac, sell_eod=sell_eod, **kwargs)
   
   def _preprocess(self, df):
     # Define processing pipeline
